@@ -1,0 +1,186 @@
+
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Uji Kamera - SIJARI TOBA</title>
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      padding: 20px;
+      font-family: Arial, sans-serif;
+      background: #f1f5f9;
+      color: #1e293b;
+    }
+
+    .card {
+      max-width: 460px;
+      margin: 20px auto;
+      padding: 22px;
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 4px 18px #00000012;
+    }
+
+    h1 { text-align: center; color: #14532d; }
+    p { text-align: center; line-height: 1.5; }
+
+    video, #preview {
+      display: none;
+      width: 100%;
+      margin-top: 16px;
+      border-radius: 12px;
+      background: #111;
+    }
+
+    video { transform: scaleX(-1); }
+    canvas { display: none; }
+
+    button {
+      width: 100%;
+      padding: 14px;
+      margin-top: 12px;
+      border: 0;
+      border-radius: 9px;
+      background: #166534;
+      color: white;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    button:disabled { opacity: .6; }
+    #retake { background: #64748b; }
+
+    #status {
+      padding: 12px;
+      margin-top: 16px;
+      border-radius: 9px;
+      background: #e2e8f0;
+      overflow-wrap: anywhere;
+      line-height: 1.5;
+    }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <h1>SIJARI TOBA</h1>
+    <p>Sistem Jejak Kehadiran Digital<br>
+      Bawaslu Kabupaten Toba</p>
+    <p>Halaman pengujian kamera selfie</p>
+
+    <button id="start">AKTIFKAN KAMERA</button>
+    <video id="video" autoplay playsinline muted></video>
+    <button id="take" hidden>AMBIL SELFIE</button>
+    <canvas id="canvas"></canvas>
+    <img id="preview" alt="Pratinjau selfie">
+    <button id="retake" hidden>AMBIL ULANG</button>
+
+    <div id="status" role="status" aria-live="polite">
+      Tekan AKTIFKAN KAMERA untuk memulai.
+    </div>
+  </main>
+
+  <script>
+    const startBtn = document.getElementById('start');
+    const takeBtn = document.getElementById('take');
+    const retakeBtn = document.getElementById('retake');
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const preview = document.getElementById('preview');
+    const statusBox = document.getElementById('status');
+
+    let stream = null;
+
+    function status(message) {
+      statusBox.textContent = message;
+    }
+
+    async function startCamera() {
+      startBtn.disabled = true;
+      status('Meminta izin kamera...');
+
+      try {
+        if (!window.isSecureContext) {
+          throw new Error('Halaman bukan konteks aman HTTPS.');
+        }
+
+        if (!navigator.mediaDevices?.getUserMedia) {
+          throw new Error('Browser tidak menyediakan akses kamera.');
+        }
+
+        stream = await navigator.mediaDevices.getUserMedia({
+          audio: false,
+          video: {
+            facingMode: { ideal: 'user' },
+            width: { ideal: 720 },
+            height: { ideal: 720 }
+          }
+        });
+
+        video.srcObject = stream;
+        await video.play();
+
+        video.style.display = 'block';
+        takeBtn.hidden = false;
+        startBtn.hidden = true;
+        status('Kamera berhasil dibuka. Posisikan wajah, lalu ambil selfie.');
+      } catch (err) {
+        startBtn.disabled = false;
+        status('Kamera gagal dibuka. ' + err.name + ': ' + err.message +
+          '. Periksa izin kamera browser dan pastikan halaman menggunakan HTTPS.');
+      }
+    }
+
+    function stopCamera() {
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+        stream = null;
+      }
+      video.srcObject = null;
+    }
+
+    function takePhoto() {
+      if (!video.videoWidth || !video.videoHeight) {
+        status('Kamera belum siap. Tunggu sebentar lalu coba lagi.');
+        return;
+      }
+
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+
+      const ctx = canvas.getContext('2d');
+      ctx.translate(canvas.width, 0);
+      ctx.scale(-1, 1);
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+      preview.src = canvas.toDataURL('image/jpeg', 0.85);
+      preview.style.display = 'block';
+      video.style.display = 'none';
+      takeBtn.hidden = true;
+      retakeBtn.hidden = false;
+
+      stopCamera();
+      status('Selfie berhasil diambil. Ini hanya pratinjau, belum disimpan ke server.');
+    }
+
+    function retakePhoto() {
+      preview.removeAttribute('src');
+      preview.style.display = 'none';
+      retakeBtn.hidden = true;
+      startBtn.hidden = false;
+      startBtn.disabled = false;
+      status('Tekan AKTIFKAN KAMERA untuk mengambil ulang selfie.');
+    }
+
+    startBtn.addEventListener('click', startCamera);
+    takeBtn.addEventListener('click', takePhoto);
+    retakeBtn.addEventListener('click', retakePhoto);
+
+    window.addEventListener('pagehide', stopCamera);
+  </script>
+</body>
+</html>
