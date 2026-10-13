@@ -4,64 +4,43 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Uji Kamera - SIJARI TOBA</title>
+  <title>Kamera Selfie - SIJARI TOBA</title>
   <style>
     * { box-sizing: border-box; }
-
     body {
-      margin: 0;
-      padding: 20px;
+      margin: 0; padding: 20px;
       font-family: Arial, sans-serif;
-      background: #f1f5f9;
-      color: #1e293b;
+      background: #f1f5f9; color: #1e293b;
     }
-
     .card {
-      max-width: 460px;
-      margin: 20px auto;
-      padding: 22px;
-      background: white;
+      max-width: 460px; margin: 20px auto;
+      padding: 22px; background: white;
       border-radius: 16px;
       box-shadow: 0 4px 18px #00000012;
     }
-
     h1 { text-align: center; color: #14532d; }
     p { text-align: center; line-height: 1.5; }
-
     video, #preview {
-      display: none;
-      width: 100%;
-      margin-top: 16px;
-      border-radius: 12px;
+      display: none; width: 100%;
+      margin-top: 16px; border-radius: 12px;
       background: #111;
     }
-
     video { transform: scaleX(-1); }
     canvas { display: none; }
-
     button {
-      width: 100%;
-      padding: 14px;
-      margin-top: 12px;
-      border: 0;
-      border-radius: 9px;
-      background: #166534;
-      color: white;
-      font-size: 16px;
-      font-weight: bold;
-      cursor: pointer;
+      width: 100%; padding: 14px;
+      margin-top: 12px; border: 0;
+      border-radius: 9px; background: #166534;
+      color: white; font-size: 16px;
+      font-weight: bold; cursor: pointer;
     }
-
     button:disabled { opacity: .6; }
     #retake { background: #64748b; }
-
+    #confirm { background: #1769aa; }
     #status {
-      padding: 12px;
-      margin-top: 16px;
-      border-radius: 9px;
-      background: #e2e8f0;
-      overflow-wrap: anywhere;
-      line-height: 1.5;
+      padding: 12px; margin-top: 16px;
+      border-radius: 9px; background: #e2e8f0;
+      overflow-wrap: anywhere; line-height: 1.5;
     }
   </style>
 </head>
@@ -70,7 +49,7 @@
     <h1>SIJARI TOBA</h1>
     <p>Sistem Jejak Kehadiran Digital<br>
       Bawaslu Kabupaten Toba</p>
-    <p>Halaman pengujian kamera selfie</p>
+    <p>Halaman kamera selfie kehadiran</p>
 
     <button id="start">AKTIFKAN KAMERA</button>
     <video id="video" autoplay playsinline muted></video>
@@ -78,6 +57,7 @@
     <canvas id="canvas"></canvas>
     <img id="preview" alt="Pratinjau selfie">
     <button id="retake" hidden>AMBIL ULANG</button>
+    <button id="confirm" hidden>KONFIRMASI SELFIE</button>
 
     <div id="status" role="status" aria-live="polite">
       Tekan AKTIFKAN KAMERA untuk memulai.
@@ -88,12 +68,14 @@
     const startBtn = document.getElementById('start');
     const takeBtn = document.getElementById('take');
     const retakeBtn = document.getElementById('retake');
+    const confirmBtn = document.getElementById('confirm');
     const video = document.getElementById('video');
     const canvas = document.getElementById('canvas');
     const preview = document.getElementById('preview');
     const statusBox = document.getElementById('status');
 
     let stream = null;
+    let selfieData = null;
 
     function status(message) {
       statusBox.textContent = message;
@@ -105,11 +87,10 @@
 
       try {
         if (!window.isSecureContext) {
-          throw new Error('Halaman bukan konteks aman HTTPS.');
+          throw new Error('Halaman harus menggunakan HTTPS.');
         }
-
         if (!navigator.mediaDevices?.getUserMedia) {
-          throw new Error('Browser tidak menyediakan akses kamera.');
+          throw new Error('Browser tidak mendukung akses kamera.');
         }
 
         stream = await navigator.mediaDevices.getUserMedia({
@@ -123,15 +104,14 @@
 
         video.srcObject = stream;
         await video.play();
-
         video.style.display = 'block';
         takeBtn.hidden = false;
         startBtn.hidden = true;
-        status('Kamera berhasil dibuka. Posisikan wajah, lalu ambil selfie.');
+        status('Kamera aktif. Posisikan wajah, lalu ambil selfie.');
       } catch (err) {
         startBtn.disabled = false;
-        status('Kamera gagal dibuka. ' + err.name + ': ' + err.message +
-          '. Periksa izin kamera browser dan pastikan halaman menggunakan HTTPS.');
+        status('Kamera gagal dibuka: ' + err.name +
+          '. Periksa izin kamera dan koneksi HTTPS.');
       }
     }
 
@@ -145,7 +125,7 @@
 
     function takePhoto() {
       if (!video.videoWidth || !video.videoHeight) {
-        status('Kamera belum siap. Tunggu sebentar lalu coba lagi.');
+        status('Kamera belum siap. Coba lagi.');
         return;
       }
 
@@ -157,29 +137,55 @@
       ctx.scale(-1, 1);
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-      preview.src = canvas.toDataURL('image/jpeg', 0.85);
+      selfieData = canvas.toDataURL('image/jpeg', 0.75);
+      preview.src = selfieData;
       preview.style.display = 'block';
       video.style.display = 'none';
       takeBtn.hidden = true;
       retakeBtn.hidden = false;
+      confirmBtn.hidden = false;
 
       stopCamera();
-      status('Selfie berhasil diambil. Ini hanya pratinjau, belum disimpan ke server.');
+      status('Selfie siap. Tekan KONFIRMASI SELFIE untuk mengirimkannya ke aplikasi utama.');
     }
 
     function retakePhoto() {
+      selfieData = null;
       preview.removeAttribute('src');
       preview.style.display = 'none';
       retakeBtn.hidden = true;
+      confirmBtn.hidden = true;
       startBtn.hidden = false;
       startBtn.disabled = false;
-      status('Tekan AKTIFKAN KAMERA untuk mengambil ulang selfie.');
+      status('Tekan AKTIFKAN KAMERA untuk mengambil ulang.');
+    }
+
+    function confirmPhoto() {
+      if (!selfieData) {
+        status('Ambil selfie terlebih dahulu.');
+        return;
+      }
+
+      if (!window.opener || window.opener.closed) {
+        status('Aplikasi utama tidak ditemukan. Buka kamera dari tombol aplikasi utama SIJARI TOBA, bukan dari tautan langsung.');
+        return;
+      }
+
+      confirmBtn.disabled = true;
+      status('Mengirim selfie kembali ke aplikasi utama...');
+
+      window.opener.postMessage({
+        type: 'SIJARI_TOBA_SELFIE',
+        selfie: selfieData
+      }, '*');
+
+      status('Foto dikirim ke jendela aplikasi utama. Penyimpanan ke server belum dikonfirmasi.');
     }
 
     startBtn.addEventListener('click', startCamera);
     takeBtn.addEventListener('click', takePhoto);
     retakeBtn.addEventListener('click', retakePhoto);
-
+    confirmBtn.addEventListener('click', confirmPhoto);
     window.addEventListener('pagehide', stopCamera);
   </script>
 </body>
